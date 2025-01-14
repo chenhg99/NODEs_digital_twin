@@ -22,8 +22,6 @@ def ODEnet(args):
     y0 = torch.tensor([-1.2061,  0.0617,  1.1632, -1.5008, -1.5944, -0.0187]) # Initial conition
     t, true_y, y0, fit_y_true, predicate_y_true = odeint_lorenz96(N, F, y0, args, device) # Generate dataset
 
-    # args.batch_time = int(args.interval/args.interval*args.batch_time)
-    #train model with write/read noise
     for i in range(args.run_loop):
         func = ODEBlock(ODEFunc_noise(args.input_dim, args.depth, args.hn, args.activation, wr=args.write_noise, rr=args.read_noise, device=device))
         # Choose Loss function

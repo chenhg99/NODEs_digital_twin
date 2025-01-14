@@ -5,17 +5,15 @@ import sys
 from torch import optim
 import os
 sys.path.append(os.getcwd())
-# from torchdiffeq import odeint_adjoint as odeint
 from torchdiffeq import odeint as odeint
-import torch.nn.functional as F
 import numpy as np
 import torch.nn as nn
 from pytorch_softdtw.soft_dtw import SoftDTW
-sdtw = SoftDTW(gamma=0.1, normalize=False) # just like nn.MSELoss()
+sdtw = SoftDTW(gamma=0.1, normalize=False)
 sys.path.append('/HP_memristor_result')
 from utils import *
 from model import *
-from HP.data_utils import Biolek
+from HP.data_utils import HPCVRM
 parser = argparse.ArgumentParser('ODE predicate HP memristor state')
 # network parameters
 parser.add_argument('--save', type=str, default='./experiment1')
@@ -83,7 +81,7 @@ if __name__ == "__main__":
         logger.info(args)
 
         # creat dataset parameters
-        t, ext, true_y, true_y0 = Biolek( type   = args.input_type, 
+        t, ext, true_y, true_y0 = HPCVRM( type   = args.input_type, 
                                     t      = torch.Tensor(np.linspace(0, args.t, args.data_size)), 
                                     Am     = torch.Tensor([args.Am]), 
                                     period = torch.Tensor([args.period]), 

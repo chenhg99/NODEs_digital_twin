@@ -18,7 +18,6 @@ def other_model(args):
     t, true_y, y0, _, _ = odeint_lorenz96(N, F, y0, args, device) # Generate dataset
     feature_len = len(true_y[0])
     #++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
-    # batch_size=1, discrete model
     args.batch_size = 1
     #++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
     # args.for_fit used for training
@@ -37,7 +36,6 @@ def other_model(args):
         #++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
         #define model
         model = Net(model_type = args.model_type, input_size=args.input_dim, hn=args.hn, depth=args.depth, batch_first=True, wr=0, rr=0, device=device).to(device)
-        # func = Net(model_type = args.model_type, input_size=args.input_dim, hn=args.hn, depth=args.depth, batch_first=True, wr=0, rr=0, device=device).to(device)
         # Choose Loss function
         loss_fn = choose_loss_fn(args)
         # Choose optimizer
@@ -63,8 +61,8 @@ def other_model(args):
         Pred_loss_log = []
         # mark time
         starttime = datetime.datetime.now()
-        hidden_prev_train = torch.zeros(args.depth, args.batch_size, args.hn).to(device)       #初始化记忆单元h0[args.batch_size,num_layer,hidden_len]
-        c_train = torch.zeros(args.depth, args.batch_size, args.hn).to(device)          #初始化记忆单元h0[args.batch_size,num_layer,hidden_len]
+        hidden_prev_train = torch.zeros(args.depth, args.batch_size, args.hn).to(device)      
+        c_train = torch.zeros(args.depth, args.batch_size, args.hn).to(device)
         for itr in range(args.niters):
             model.train()
             optimizer.zero_grad()
@@ -73,10 +71,10 @@ def other_model(args):
                 output, (hidden_prev_train, c_train) = model(x, (hidden_prev_train, c_train))
                 c_train = c_train.detach()
             else:
-                output, hidden_prev_train = model(x, hidden_prev_train)       #喂入模型得到输出
+                output, hidden_prev_train = model(x, hidden_prev_train)
             
             hidden_prev_train = hidden_prev_train.detach()
-            loss = loss_fn(output, y)        #计算MSE损失
+            loss = loss_fn(output, y)
             model.zero_grad()
             loss.backward()
             optimizer.step()
@@ -93,14 +91,14 @@ def other_model(args):
                 #Testing
                 with torch.no_grad():
                     #initial input
-                    input = x[:, 0, :]             #取seq_len里面第0号数据
+                    input = x[:, 0, :]
                     input = input.view(1, 1, feature_len)   #input：[1,1,1]
                     #initial sorted data
                     fit_data = []
                     fit_data.append(input.cpu().detach().numpy().ravel())
                     #initial hidden state
-                    hidden_prev = torch.zeros(args.depth, args.batch_size, args.hn).to(device)       #初始化记忆单元h0[args.batch_size,num_layer,hidden_len]
-                    c = torch.zeros(args.depth, args.batch_size, args.hn).to(device)          #初始化记忆单元h0[args.batch_size,num_layer,hidden_len]
+                    hidden_prev = torch.zeros(args.depth, args.batch_size, args.hn).to(device)
+                    c = torch.zeros(args.depth, args.batch_size, args.hn).to(device)
                     #0-1800 used for fitting
                     for _ in range(fit_slice - 1):             #迭代seq_len次
                             if args.model_type == "LSTM":
@@ -108,7 +106,7 @@ def other_model(args):
                                 c = c.detach()
                             else:
                                 pred, hidden_prev = model(input, hidden_prev)
-                            input = pred           #预测出的(下一个点的)序列pred当成输入(或者直接写成input, hidden_prev = model(input, hidden_prev))
+                            input = pred
                             fit_data.append(pred.cpu().detach().numpy().ravel())
 
                     fit_data = np.array(fit_data)
@@ -121,13 +119,13 @@ def other_model(args):
                     pred_data.append(input.cpu().detach().numpy().ravel())
                     #initialize hidden_prev
                     #1800-2000 used for prediction
-                    for _ in range(pred_slice - 2):             #迭代seq_len次
+                    for _ in range(pred_slice - 2):
                         if args.model_type == "LSTM":
                             pred, (hidden_prev, c) = model(input, (hidden_prev, c))
                             c = c.detach()
                         else:   
                             pred, hidden_prev = model(input, hidden_prev)
-                            input = pred           #预测出的(下一个点的)序列pred当成输入(或者直接写成input, hidden_prev = model(input, hidden_prev))
+                            input = pred
                         pred_data.append(pred.cpu().detach().numpy().ravel())
                         
                     pred_data = np.array(pred_data)
@@ -142,11 +140,9 @@ def other_model(args):
                         log = open(log_location,'a+')
                         sys.stdout = log
                         #save model
-                        # save_model(dirname, func, name = '0_fit')
-                        #save model
                         load_path = dirname + '/'+'0_fit_params.npy'
                         torch.save(model.state_dict(), load_path)
-                        
+       
                         #figure number +1
                         ii+=1
                         #update min fit loss
@@ -199,134 +195,11 @@ def other_model(args):
         sys.stdout = log
         print('------------------------------------------------')
         print('Fit Loss:')
-        # print(Fit_loss_log)
         plot_loss(dirname, Fit_loss_log, name = 'fit')
         print('------------------------------------------------')
         print('Predication Loss:')
-        # print(Pred_loss_log)
         plot_loss(dirname, Pred_loss_log, name = 'pred')
         print('------------------------------------------------')
         print('Total Runnig time : %s'%(endtime-starttime))
         print('------------------------------------------------')
         log.close()
-
-            # # Inference process including fitting and predicating
-            # #++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
-            # for wr in [0]:
-            #     for rr in [0]:
-            #         #++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
-            #         # load model with different noise level
-            #         func_inference = Net(model_type = args.model_type, input_size=args.input_dim, hn=args.hn, depth=args.depth, batch_first=True, wr=0, rr=0).to(device)
-            #         func_inference.load_state_dict(torch.load(load_path))
-            #         func_inference.to(device)
-            #         #++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
-            #         #0-1800 used for fitting
-            #         input = x[:, 0, :]             #取seq_len里面第0号数据
-            #         input = input.view(1, 1, feature_len)   #input：[1,1,1]
-
-            #         fit_data = []
-            #         fit_data.append(input.cpu().detach().numpy().ravel()) 
-
-            #         hidden_prev = torch.zeros(args.depth, args.batch_size, args.hn).to(device)       #初始化记忆单元h0[args.batch_size,num_layer,hidden_len]
-            #         c = torch.zeros(args.depth, args.batch_size, args.hn).to(device)          #初始化记忆单元h0[args.batch_size,num_layer,hidden_len]
-            #         for _ in range(fit_slice - 1):             #迭代seq_len次
-            #                 if args.model_type == "LSTM":
-            #                     pred, (hidden_prev, c) = func_inference(input, (hidden_prev, c))
-            #                     c = c.detach()
-            #                 else:
-            #                     pred, hidden_prev = func_inference(input, hidden_prev)
-            #                 input = pred           #预测出的(下一个点的)序列pred当成输入(或者直接写成input, hidden_prev = model(input, hidden_prev))
-            #                 fit_data.append(pred.cpu().detach().numpy().ravel())
-                    
-            #         fit_data = np.array(fit_data)
-            #         fit_data = torch.from_numpy(fit_data).to(device)
-            #         fit_loss = loss_fn(fit_data, fit_y_true)
-            #         fit_data = np.array(fit_data.cpu())
-            #         save_name = '0_fit_data_wr%s_rr%s_loss_%.4f.png'%(wr, rr, fit_loss)
-            #         visualize_nn(fit_y_true, fit_data, t[:fit_slice], dirname, save_name)
-            #         #++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
-            #         #1800 - 2000 used for predcating
-            #         input = torch.tensor(pred_y_true[0]).float().view(1, feature_len)             #取seq_len里面第0号数据
-            #         input = input.view(1, 1, feature_len)   #input：[1,1,1]
-
-            #         pred_data = []
-            #         pred_data.append(input.cpu().detach().numpy().ravel())
-
-            #         hidden_prev = torch.zeros(args.depth, args.batch_size, args.hn).to(device)       #初始化记忆单元h0[args.batch_size,num_layer,hidden_len]
-            #         c = torch.zeros(args.depth, args.batch_size, args.hn).to(device)          #初始化记忆单元h0[args.batch_size,num_layer,hidden_len]
-            #         for _ in range(pred_slice - 1):             #迭代seq_len次
-            #                 if args.model_type == "LSTM":
-            #                     pred, (hidden_prev, c) = func_inference(input, (hidden_prev, c))
-            #                     c = c.detach()
-            #                 else:
-            #                     pred, hidden_prev = func_inference(input, hidden_prev)
-            #                 input = pred           #预测出的(下一个点的)序列pred当成输入(或者直接写成input, hidden_prev = model(input, hidden_prev))
-            #                 pred_data.append(pred.cpu().detach().numpy().ravel())
-            #         pred_data = np.array(pred_data)
-            #         pred_data = torch.from_numpy(pred_data).to(device)
-            #         pre_loss = loss_fn(pred_data, pred_y_true)
-            #         pred_data = np.array(pred_data.cpu())
-            #         save_name = '0_pred_data_wr%s_rr%s_loss_%.4f.png'%(wr, rr, pre_loss)
-            #         visualize_nn(pred_y_true, pred_data, t[:pred_slice], dirname, save_name)
-
-            # #+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
-            # for wr in [0]:
-            #     for rr in [0]:
-            #         #+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
-            #         # load model with different noise level
-            #         func_inference = Net(model_type = model_type, input_size=6, hn=1024, depth=2, batch_first=True, wr=wr, rr=rr).to(device)
-            #         func_inference.load_state_dict(torch.load(load_path))
-            #         func_inference.to(device)
-            #         #+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
-            #         #0-1800 used for fitting
-            #         #测试过程
-            #         input = torch.tensor(pred_y_true[0]).float().view(1, feature_len)             #取seq_len里面第0号数据
-            #         input = input.view(1, 1, feature_len)   #input：[1,1,1]
-
-            #         pred_data = []
-            #         pred_data.append(input.cpu().detach().numpy().ravel())
-
-            #         hidden_prev = torch.zeros(depth, args.batch_size, hn).to(device)       #初始化记忆单元h0[args.batch_size,num_layer,hidden_len]
-            #         c = torch.zeros(depth, args.batch_size, hn).to(device)          #初始化记忆单元h0[args.batch_size,num_layer,hidden_len]
-            #         for _ in range(args.for_fit - 1):             #迭代seq_len次
-            #                 if model_type == "LSTM":
-            #                     pred, (hidden_prev, c) = func_inference(input, (hidden_prev, c))
-            #                     c = c.detach()
-            #                 else:
-            #                     pred, hidden_prev = func_inference(input, hidden_prev)
-            #                 input = pred           #预测出的(下一个点的)序列pred当成输入(或者直接写成input, hidden_prev = model(input, hidden_prev))
-            #                 pred_data.append(pred.cpu().detach().numpy().ravel())
-            #         pred_data = np.array(pred_data)
-            #         save_name = '0_pred_data_wr%s_rr%s.png'%(wr, rr)
-            #         visualize_nn(pred_y_true, pred_data, t[:args.for_fit], dirname, save_name)
-
-
-
-
-
-
-
-
-            # hidden_prev = torch.zeros(depth, args.batch_size, hn)
-            # #1800 - 2000 used for predication
-            # #测试过程
-            # input = torch.tensor(pred_y_true[0]).float().view(1, feature_len)             #取seq_len里面第0号数据
-            # input = input.view(1, 1, feature_len)   #input：[1,1,1]
-
-            # pred_data = []
-            # pred_data.append(input.detach().numpy().ravel())
-            # for _ in range(args.for_fit - 1):             #迭代seq_len次
-            #     pred, hidden_prev = func_inference(input, hidden_prev)
-            #     input = pred           #预测出的(下一个点的)序列pred当成输入(或者直接写成input, hidden_prev = model(input, hidden_prev))
-            #     pred_data.append(pred.detach().numpy().ravel())
-            # pred_data = np.array(pred_data)
-            # np.save('/home/hegan/Lorenz96_odenet/RNN'+'/'+'pred_data.npy', pred_data)
-
-            # fig = plt.figure(figsize=(6, 6), dpi=100)
-            # plt.title('Predicated curve') 
-            # for i in range(feature_len):
-            #     plt.subplot(int(feature_len), 1, i+1)
-            #     plt.plot(t[:args.for_fit], pred_y_true[:,i], color='b')
-            #     plt.scatter(t[:args.for_fit], pred_data[:,i], s=4, c='darkred')   #y的预测值
-            # fig.tight_layout(pad=1, h_pad=0.1)
-            # plt.show()
